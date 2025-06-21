@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace WinHTTPSharp
 {
-    interface IWinHttpRequest
+    public interface IWinHttpRequest
     {
         byte[] ResponseBody { get; }
         Stream ResponseStream { get; }
@@ -16,13 +16,13 @@ namespace WinHTTPSharp
         string StatusText { get; }
 
         //Functions
-        void Open(string Method, string Url, VARIANT Async = VARIANT.VARIANT_FALSE);
-        void Send(byte[] sendData = null);
-        void Send(string sendData = null);
-        void SetRequestHeader(string Header, string Value);
+        void Open(string method, string url, bool async = false);
+        Task Send(byte[] sendData = null);
+        Task Send(string sendData);
+        void SetRequestHeader(string header, string value);
         void Abort();
         string GetResponseHeaders();
-        string GetResponseHeader(string Header);
+        string GetResponseHeader(string header);
 
 
         //void SetAutoLogonPolicy(WinHttpRequestAutoLogonPolicy AutoLogonPolicy);

@@ -7,12 +7,12 @@ namespace Examples
         static void Main(string[] args)
         {
             Console.WriteLine("WinHttpSharp Examples");
-            Console.WriteLine("1. SimpleGet\n");
+            Console.WriteLine("1. SimpleGet");
+            Console.WriteLine("2. SimpleGetAsync");
             Console.Write("Select Example Number: ");
 
             string nStr = Console.ReadLine();
-            int number = 0;
-            if (!int.TryParse(nStr, out number))
+            if (!int.TryParse(nStr, out var number))
             {
                 return;
             }
@@ -21,6 +21,9 @@ namespace Examples
             {
                 case 1:
                     SimpleGet._SimpleGet();
+                    break;
+                case 2:
+                    SimpleGet._SimpleGetAsync().GetAwaiter().GetResult();
                     break;
                 default:
                     break;

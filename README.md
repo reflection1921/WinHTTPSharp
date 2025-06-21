@@ -8,7 +8,7 @@ static void main(string[] args)
 {
 	WinHttpRequest whttp = new WinHttpRequest();
 
-	whttp.Open("GET", "https://www.google.co.kr");
+	whttp.Open("GET", "https://www.google.co.kr", true);
 	whttp.Send();
 
 	Console.WriteLine(whttp.ResponseText);
@@ -60,7 +60,3 @@ End Sub
 | OnResponseDataAvailable | No          |
 | OnResponseStart         | No          |
 | OnResponseFinished      | Yes         |
-
-### Others
-
-- Currently, Async is not supported.

@@ -8,15 +8,15 @@ namespace WinHTTPSharp
 {
     namespace WinHttp
     {
-
         //async not supported.
         public class WinHttpRequest : IWinHttpRequest, IWinHttpRequestEvents
         {
-
-            HttpWebRequest webReq;
-            HttpWebResponse webRes;
-            bool isAsync = false;
-
+            
+            HttpWebRequest _webReq;
+            HttpWebResponse _webRes;
+            private bool _isAsync;
+            private string _url;
+            
             public event IWinHttpRequestEvents_OnResponseFinishedEventHandler OnResponseFinished;
             public event IWinHttpRequestEvents_OnErrorEventHandler OnError;
 
@@ -26,103 +26,87 @@ namespace WinHTTPSharp
             public int Status { get; private set; }
             public string StatusText { get; private set; }
 
-            public void Open(string Method, string Url, VARIANT Async = VARIANT.VARIANT_FALSE)
+            public void Open(string method, string url, bool async = false)
             {
-                webReq = (HttpWebRequest)WebRequest.Create(Url);
-                webReq.Method = Method;
-                if (Async == VARIANT.VARIANT_TRUE)
+                _webReq = (HttpWebRequest)WebRequest.Create(url);
+                _webReq.Method = method;
+                _isAsync = async;
+                _url = url;
+            }
+
+            public Task Send(byte[] sendData = null)
+            {
+                if (_isAsync)
                 {
-                    isAsync = true;
+                    return Send_Async(sendData);
                 }
                 else
                 {
-                    isAsync = false;
+                    Send_Sync(sendData);
+                    return Task.CompletedTask;
                 }
             }
 
-            public void Send(byte[] sendData = null)
+            public Task Send(string sendData)
             {
-                //if (isAsync)
-                //{
-                //    await Send_Impl_Async(sendData);
-                //    await GetResponseData_Impl_Async();
-                //}
-
-                //else
+                if (_isAsync)
                 {
-                    if (webReq.Method.ToLower() != "get")
-                    {
-                        Send_Impl(sendData);
-                    }
-                    GetResponseData_Impl();
+                    return Send_Async(sendData);
                 }
-                
-            }
-
-            public void Send(string sendData)
-            {
-                //if (isAsync)
-                //{
-                //    await Send_Impl_Async(sendData);
-                //    await GetResponseData_Impl_Async();
-                //}
-
-                //else
+                else
                 {
-                    if (webReq.Method.ToLower() != "get")
-                    {
-                        Send_Impl(sendData);
-                    }
-                    
-                    GetResponseData_Impl();
+                    Send_Sync(sendData);
+                    return Task.CompletedTask;
                 }
             }
 
-            public void SetRequestHeader(string Header, string Value)
+            public void SetRequestHeader(string header, string value)
             {
-                string _header = Header.ToLower();
-                switch(_header)
+                header = header.ToLower();
+                switch(header)
                 {
                     case "accept":
-                        webReq.Accept = Value;
+                        _webReq.Accept = value;
                         break;
                     case "user-agent":
-                        webReq.UserAgent = Value;
+                        _webReq.UserAgent = value;
                         break;
                     case "content-length":
-                        long long_val = 0;
-                        bool valid = long.TryParse(Value, out long_val);
-                        if (valid) webReq.ContentLength = long_val;
+                        bool valid = long.TryParse(value, out var longValue);
+                        if (valid) _webReq.ContentLength = longValue;
                         break;
                     case "connection":
-                        webReq.Connection = Value;
-                        if (!Value.ToLower().Equals("keep-alive")) webReq.KeepAlive = false;
+                        _webReq.Connection = value;
+                        if (!value.ToLower().Equals("keep-alive")) _webReq.KeepAlive = false;
                         break;
                     case "content-type":
-                        webReq.ContentType = Value;
+                        _webReq.ContentType = value;
                         break;
                     case "host":
-                        webReq.Host = Value;
+                        _webReq.Host = value;
                         break;
                     case "referer":
-                        webReq.Referer = Value;
+                        _webReq.Referer = value;
+                        break;
+                    case "cookie":
+                        _webReq.Headers["Cookie"] = value;
                         break;
                     default:
-                        webReq.Headers[Header] = Value;
+                        _webReq.Headers[header] = value;
                         break;
                 }
             }
 
             public string GetResponseHeaders()
             {
-                int count = webRes.Headers.Count;
+                int count = _webRes.Headers.Count;
 
                 string headers = "";
 
                 for (int i = 0; i < count; i++)
                 {
-                    string key = webRes.Headers.GetKey(i);
-                    string[] vals = webRes.Headers.GetValues(i);
+                    string key = _webRes.Headers.GetKey(i);
+                    string[] vals = _webRes.Headers.GetValues(i);
                     string val = "";
 
                     for (int j = 0; j < vals.Length; j++)
@@ -135,14 +119,14 @@ namespace WinHTTPSharp
                 return headers;
             }
 
-            public string GetResponseHeader(string Header)
+            public string GetResponseHeader(string header)
             {
-                return webRes.GetResponseHeader(Header);
+                return _webRes.GetResponseHeader(header);
             }
 
             public void Abort()
             {
-                webReq.Abort();
+                _webReq.Abort();
             }
 
             //public void SetTimeouts(int ResolveTimeout, int ConnectionTimeout, int SendTimeout, int ReceiveTimeout)
@@ -150,82 +134,80 @@ namespace WinHTTPSharp
             //    
             //}
 
-            public dynamic Option()
+            #region Private Methods
+            private void Send_Sync(byte[] sendData = null)
             {
-                object[] krv = new object[4];
-                krv[0] = 1;
-                krv[1] = "KRV";
-                return false;
-            }
-
-            /*private*/
-            private void Send_Impl(byte[] sendData = null)
-            {
-                using (Stream stDataParams = webReq.GetRequestStream())
+                if (sendData != null)
                 {
+                    using Stream stDataParams = _webReq.GetRequestStream();
                     stDataParams.Write(sendData, 0, sendData.Length);
                 }
+
+                GetResponseData_Sync();
             }
 
-            private void Send_Impl(string sendData)
+            private void Send_Sync(string sendData)
             {
+                using StreamWriter stDataParams = new StreamWriter(_webReq.GetRequestStream());
+                stDataParams.Write(sendData);
 
-                using (StreamWriter stDataParams = new StreamWriter(webReq.GetRequestStream()))
-                {
-                    stDataParams.Write(sendData);
-                }
+                GetResponseData_Sync();
             }
 
-            private async Task Send_Impl_Async(byte[] sendData = null)
+            private async Task Send_Async(byte[] sendData = null)
             {
-                using (Stream stDataParams = await webReq.GetRequestStreamAsync())
+                if (sendData != null)
                 {
+                    await using Stream stDataParams = await _webReq.GetRequestStreamAsync();
                     await stDataParams.WriteAsync(sendData, 0, sendData.Length);
                 }
+
+                await GetResponseData_Async();
+
             }
 
-            private async Task Send_Impl_Async(string sendData)
+            private async Task Send_Async(string sendData)
             {
-                using (StreamWriter stDataParams = new StreamWriter(await webReq.GetRequestStreamAsync()))
-                {
-                    await stDataParams.WriteAsync(sendData);
-                }
+                await using StreamWriter stDataParams = new StreamWriter(await _webReq.GetRequestStreamAsync());
+                await stDataParams.WriteAsync(sendData);
+
+                await GetResponseData_Async();
             }
 
-            private void GetResponseData_Impl()
+            private void GetResponseData_Sync()
             {
-                webRes = (HttpWebResponse)webReq.GetResponse();
+                _webRes = (HttpWebResponse)_webReq.GetResponse();
 
                 using (MemoryStream ms = new MemoryStream())
                 {
-                    webRes.GetResponseStream().CopyTo(ms);
+                    _webRes.GetResponseStream().CopyTo(ms);
                     ResponseBody = ms.ToArray();
                     ResponseText = Encoding.UTF8.GetString(ResponseBody);
                     ResponseStream = ms;
                     if (OnResponseFinished != null) OnResponseFinished();
                 }
 
-                Status = ((int)webRes.StatusCode);
-                StatusText = webRes.StatusCode.ToString();
-
+                Status = ((int)_webRes.StatusCode);
+                StatusText = _webRes.StatusCode.ToString();
             }
 
-            private async Task GetResponseData_Impl_Async()
+            private async Task GetResponseData_Async()
             {
-                webRes = (HttpWebResponse)await webReq.GetResponseAsync();
+                _webRes = (HttpWebResponse)await _webReq.GetResponseAsync();
 
                 using (MemoryStream ms = new MemoryStream())
                 {
-                    webRes.GetResponseStream().CopyTo(ms);
+                    _webRes.GetResponseStream().CopyTo(ms);
                     ResponseBody = ms.ToArray();
                     ResponseText = Encoding.UTF8.GetString(ResponseBody);
                     ResponseStream = ms;
-                    OnResponseFinished();
+                    if (OnResponseFinished != null) OnResponseFinished();
                 }
 
-                Status = ((int)webRes.StatusCode);
-                StatusText = webRes.StatusCode.ToString();
+                Status = ((int)_webRes.StatusCode);
+                StatusText = _webRes.StatusCode.ToString();
             }
+            #endregion
         }
     }
 }

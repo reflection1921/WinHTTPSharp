@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 namespace WinHTTPSharp
 {
     public enum WinHttpRequestAutoLogonPolicy { AutoLogonPolicy_Always, AutoLogonPolicy_Never, AutoLogonPolicy_OnlyIfBypassProxy }
-    public enum VARIANT { VARIANT_FALSE = 0, VARIANT_TRUE = 1}
     public enum WinHttpRequestOption
     {
         WinHttpRequestOption_UserAgentString = 0,
