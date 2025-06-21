@@ -9,7 +9,7 @@ static void main(string[] args)
 	WinHttpRequest whttp = new WinHttpRequest();
 
 	whttp.Open("GET", "https://www.google.co.kr", true);
-	whttp.Send();
+	whttp.Send().GetAwaiter().GetResult();
 
 	Console.WriteLine(whttp.ResponseText);
 }
